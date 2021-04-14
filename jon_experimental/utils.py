@@ -62,7 +62,7 @@ def getObjectComponentIndexes(X, model):
     model : sklearn.cluster.KMeans
         a kmeans model
     """
-    centroids = model.cluster_centers_
+    centroids = findClusterCenters(X, model)
     topYIndex = centroids.argmax(axis=0)[1]
     indexMask = model.labels_ == topYIndex
     indexes = np.arange(model.labels_.shape[0])
@@ -82,3 +82,14 @@ def getObjectComponents(X, model):
         a kmeans model
     """
     return X[getObjectComponentIndexes(X, model)]
+
+
+def findClusterCenters(X, model):
+    numClusters = np.unique(model.labels_).shape[0]
+
+    out = np.zeros((numClusters, 2))
+
+    for i in np.unique(model.labels_):
+        out[i, :] = X[model.labels_ == i, :].mean(axis=0)
+
+    return out
