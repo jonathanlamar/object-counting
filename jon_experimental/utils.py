@@ -22,6 +22,15 @@ def plotSublevelMask(img, threshold):
     return plt.imshow((img <= threshold).astype(int), cmap='gray')
 
 
+def plotSuperlevelMask(img, threshold):
+    plt.figure(figsize=(10, 6))
+    plt.xticks([])
+    plt.yticks([])
+    plt.title('Sublevel set in white: threshold = %.2f' % threshold)
+
+    return plt.imshow((img >= threshold).astype(int), cmap='gray')
+
+
 def plotPersistenceDiagrams(dgm, **args):
     """plotPersistenceDiagrams.  Runs plot_diagrams and restyles back the way
     it should stay.
@@ -37,59 +46,59 @@ def plotPersistenceDiagrams(dgm, **args):
     jtplot.style(ticks=True, grid=True, gridlines='--')  # Ugh
 
 
-def plotKMeansModel(X, model):
-    """plotKMeansModel. Scatter plot colored by kmeans label.
+def getLabeledDataset(X, model):
+    return pd.DataFrame({
+        'x': X[:, 0],
+        'y': X[:, 1],
+        'label': model.labels_
+    })
+
+
+def plotClusterModel(df):
+    """plotClusterModel. Scatter plot colored by cluster label.
 
     Parameters
     ----------
-    X : numpy.array
-        dataset the model was fit on
-    model : sklearn.cluster.KMeans
-        a kmeans model
+    df : pandas.DataFrame
+       output of getLabeledDataset
     """
     plt.figure()
-    return plt.scatter(X[:, 0], X[:, 1], c=model.labels_)
+
+    for c in df['label'].unique():
+        df2 = df[df['label'] == c]
+        labelStr = 'grp %d, y=%.2f, num=%d' % (
+            c, df2['y'].mean(), df2['y'].shape[0])
+        plt.scatter(df2['x'], df2['y'], label=labelStr)
+
+    return plt.legend()
 
 
-def getObjectComponentIndexes(X, model):
+def getObjectComponentIndexes(df):
     """getObjectComponents.  Get the 'components' (i.e., H_0-representatives)
     corresponding to the 'objects' we are trying to count.
 
     Parameters
     ----------
-    X : numpy.array
-        dataset the model was fit on
-    model : sklearn.cluster.KMeans
-        a kmeans model
+    df : pandas.DataFrame
+       output of getLabeledDataset
     """
-    centroids = findClusterCenters(X, model)
-    topYIndex = centroids.argmax(axis=0)[1]
-    indexMask = model.labels_ == topYIndex
-    indexes = np.arange(model.labels_.shape[0])
+    centroids = findClusterCenters(df)
+    topYIndex = centroids.sort_values('y').index[-1]
 
-    return indexes[indexMask]
+    return df[df['label'] == topYIndex].index
 
 
-def getObjectComponents(X, model):
+def getObjectComponents(df):
     """getObjectComponents.  Get the 'components' (i.e., H_0-representatives)
     corresponding to the 'objects' we are trying to count.
 
     Parameters
     ----------
-    X : numpy.array
-        dataset the model was fit on
-    model : sklearn.cluster.KMeans
-        a kmeans model
+    df : pandas.DataFrame
+       output of getLabeledDataset
     """
-    return X[getObjectComponentIndexes(X, model)]
+    return df.loc[getObjectComponentIndexes(df)]
 
 
-def findClusterCenters(X, model):
-    numClusters = np.unique(model.labels_).shape[0]
-
-    out = np.zeros((numClusters, 2))
-
-    for i in np.unique(model.labels_):
-        out[i, :] = X[model.labels_ == i, :].mean(axis=0)
-
-    return out
+def findClusterCenters(df):
+    return df.groupby('label').mean()
